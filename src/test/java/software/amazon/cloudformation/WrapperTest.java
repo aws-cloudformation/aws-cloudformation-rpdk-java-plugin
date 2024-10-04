@@ -344,7 +344,6 @@ public class WrapperTest {
 
     @Test
     public void invokeHandler_DependenciesInitialised_CompleteSynchronously_returnsSuccess() throws IOException {
-        final WrapperOverride wrapper = new WrapperOverride(platformEventsLogger);
         final TestModel model = new TestModel();
 
         // if the handler responds Complete, this is treated as a successful synchronous

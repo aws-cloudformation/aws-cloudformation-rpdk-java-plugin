@@ -307,7 +307,6 @@ public class HookWrapperTest {
     @Test
     public void invokeHandler_DependenciesInitialised_CompleteSynchronously_returnsSuccess() throws IOException {
         lenient().when(cipher.decryptCredentials(any())).thenReturn(new Credentials("123", "123", "123"));
-        final HookWrapperOverride wrapper = new HookWrapperOverride(platformEventsLogger, cipher);
 
         // if the handler responds Complete, this is treated as a successful synchronous
         // completion

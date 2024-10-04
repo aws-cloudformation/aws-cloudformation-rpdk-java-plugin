@@ -48,9 +48,6 @@ import software.amazon.awssdk.services.cloudwatchevents.model.PutTargetsResponse
 import software.amazon.awssdk.services.cloudwatchevents.model.PutTargetsResultEntry;
 import software.amazon.awssdk.services.cloudwatchevents.model.Tag;
 import software.amazon.awssdk.services.cloudwatchevents.model.Target;
-import software.amazon.awssdk.services.kendra.model.DataSourceConfiguration;
-import software.amazon.awssdk.services.kendra.model.TemplateConfiguration;
-import software.amazon.awssdk.services.kendra.model.UpdateDataSourceRequest;
 import software.amazon.awssdk.utils.builder.SdkBuilder;
 import software.amazon.cloudformation.resource.Serializer;
 
@@ -437,30 +434,78 @@ public class AWSServiceSerdeTest {
         assertThat(exception.getMessage()).contains("Type mismatch, expecting " + MarshallingType.MAP + " got List type");
     }
 
-    @Test
-    public void documentFieldSerde() throws Exception {
-        Document template = Document.mapBuilder().putString("type", "S3")
-            .putDocument("connectionConfiguration",
-                Document.mapBuilder()
-                    .putDocument("repositoryEndpointMetadata", Document.mapBuilder().putString("BucketName", "mybucket").build())
-                    .build())
-            .putDocument("repositoryConfigurations",
-                Document.mapBuilder()
-                    .putDocument("document",
-                        Document.mapBuilder().putDocument("fieldMappings", Document.listBuilder()
-                            .addDocument(Document.mapBuilder().putString("indexFieldName", "foo")
-                                .putString("indexFieldType", "STRING").putString("dataSourceFieldName", "foo").build())
-                            .build()).build())
-                    .build())
-            .putBoolean("booleanValue", false).putNumber("numberValue", 1).putNull("nullValue").build();
-        UpdateDataSourceRequest request = UpdateDataSourceRequest.builder()
-            .configuration(DataSourceConfiguration.builder()
-                .templateConfiguration(TemplateConfiguration.builder().template(template).build()).build())
-            .id("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").indexId("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").build();
+    @lombok.EqualsAndHashCode
+    @lombok.ToString
+    @lombok.Getter
+    private static class PojoContainingDocument implements SdkPojo {
 
-        String json = serializer.serialize(request);
-        UpdateDataSourceRequest deserialized = serializer.deserialize(json, new TypeReference<UpdateDataSourceRequest>() {
+        private final Document document;
+
+        private static final SdkField<Document> DOCUMENT_VALUE_FIELD = SdkField.builder(MarshallingType.DOCUMENT)
+            .getter(documentGetter(PojoContainingDocument::getDocument))
+            .setter(documentSetter(PojoContainingDocument.Builder::documentValue))
+            .traits(LocationTrait.builder().location(MarshallLocation.PAYLOAD).locationName("DocumentValue").build()).build();
+        private static final List<SdkField<?>> SDK_FIELDS = Collections.singletonList(DOCUMENT_VALUE_FIELD);
+
+        @Override
+        public List<SdkField<?>> sdkFields() {
+            return SDK_FIELDS;
+        }
+
+        public static PojoContainingDocument.Builder builder() {
+            return new PojoContainingDocument.Builder();
+        }
+
+        private PojoContainingDocument(Builder builder) {
+            this.document = builder.documentValue;
+        }
+
+        public static class Builder implements SdkBuilder<PojoContainingDocument.Builder, PojoContainingDocument>, SdkPojo {
+
+            private Document documentValue;
+
+            public PojoContainingDocument.Builder documentValue(Document documentValue) {
+                this.documentValue = documentValue;
+                return this;
+            }
+
+            Builder() {
+            }
+
+            @Override
+            public PojoContainingDocument build() {
+                return new PojoContainingDocument(this);
+            }
+
+            @Override
+            public List<SdkField<?>> sdkFields() {
+                return SDK_FIELDS;
+            }
+        }
+
+        // static wrappers of getDocument & putDocument
+        private static Function<Object, Document> documentGetter(Function<PojoContainingDocument, Document> g) {
+            return obj -> g.apply((PojoContainingDocument) obj);
+        }
+
+        private static BiConsumer<Object, Document> documentSetter(BiConsumer<PojoContainingDocument.Builder, Document> s) {
+            return (obj, val) -> s.accept((PojoContainingDocument.Builder) obj, val);
+        }
+    }
+
+    @Test
+    public void testDocumentFieldSerde() throws Exception {
+        Document template = Document.mapBuilder().putString("type", "Foo")
+            .putDocument("fooConfigurationDocument1",
+                Document.mapBuilder()
+                    .putDocument("fooConfigurationDocumentNestedData", Document.mapBuilder().putString("name", "value").build())
+                    .build())
+            .putDocument("fooConfigurationDocument2", Document.mapBuilder().putNumber("numberField1", 0.1).build())
+            .putBoolean("booleanField1", false).putNumber("numberField2", 10).build();
+        PojoContainingDocument pojoContainingDocument = PojoContainingDocument.builder().documentValue(template).build();
+        String json = serializer.serialize(pojoContainingDocument);
+        PojoContainingDocument deserialized = serializer.deserialize(json, new TypeReference<PojoContainingDocument>() {
         });
-        assertThat(deserialized).isEqualTo(request);
+        assertThat(deserialized).isEqualTo(pojoContainingDocument);
     }
 }
