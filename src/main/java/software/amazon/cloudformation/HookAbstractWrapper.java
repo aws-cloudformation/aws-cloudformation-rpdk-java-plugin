@@ -249,7 +249,7 @@ public abstract class HookAbstractWrapper<TargetT, CallbackT, ConfigurationT> {
             if (processedCallerCredentials != null) {
                 awsClientProxy = new AmazonWebServicesClientProxy(this.loggerProxy, processedCallerCredentials,
                                                                   DelayFactory.CONSTANT_DEFAULT_DELAY_FACTORY,
-                                                                  WaitStrategy.scheduleForCallbackStrategy());
+                                                                  WaitStrategy.scheduleForCallbackStrategy(), true);
 
             }
 

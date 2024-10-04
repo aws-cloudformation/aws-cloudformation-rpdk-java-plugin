@@ -25,11 +25,11 @@ import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import javax.annotation.CheckForNull;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NonNull;
 import lombok.Setter;
-import javax.annotation.CheckForNull;
 import org.json.JSONObject;
 import software.amazon.cloudformation.resource.Serializer;
 

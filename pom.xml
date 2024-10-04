@@ -295,7 +295,7 @@
                     <java>
                         <!-- this automatically inserts line breaks, so apply it before eclipse formatter! -->
                         <importOrder>
-                            <order>com,edu,java,lombok,javax,org,software</order>
+                            <order>com,edu,java,javax,lombok,org,software</order>
                         </importOrder>
                         <removeUnusedImports/>
                         <eclipse>

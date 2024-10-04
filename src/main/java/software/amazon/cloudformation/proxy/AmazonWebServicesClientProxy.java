@@ -31,6 +31,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
+import lombok.Getter;
+import lombok.Setter;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -66,6 +68,9 @@ public class AmazonWebServicesClientProxy implements CallChain {
     private final LoggerProxy loggerProxy;
     private final DelayFactory override;
     private final WaitStrategy waitStrategy;
+    @Getter
+    @Setter
+    private Boolean invokedByCfn;
 
     public AmazonWebServicesClientProxy(final LoggerProxy loggerProxy,
                                         final Credentials credentials,
@@ -77,13 +82,14 @@ public class AmazonWebServicesClientProxy implements CallChain {
                                         final Credentials credentials,
                                         final Supplier<Long> remainingTimeToExecute,
                                         final DelayFactory override) {
-        this(loggerProxy, credentials, override, WaitStrategy.newLocalLoopAwaitStrategy(remainingTimeToExecute));
+        this(loggerProxy, credentials, override, WaitStrategy.newLocalLoopAwaitStrategy(remainingTimeToExecute), null);
     }
 
     public AmazonWebServicesClientProxy(final LoggerProxy loggerProxy,
                                         final Credentials credentials,
                                         final DelayFactory override,
-                                        final WaitStrategy waitStrategy) {
+                                        final WaitStrategy waitStrategy,
+                                        final Boolean invokedByCfn) {
         this.loggerProxy = loggerProxy;
         BasicSessionCredentials basicSessionCredentials = new BasicSessionCredentials(credentials.getAccessKeyId(),
                                                                                       credentials.getSecretAccessKey(),
@@ -95,6 +101,7 @@ public class AmazonWebServicesClientProxy implements CallChain {
         this.v2CredentialsProvider = StaticCredentialsProvider.create(awsSessionCredentials);
         this.override = Objects.requireNonNull(override);
         this.waitStrategy = Objects.requireNonNull(waitStrategy);
+        this.invokedByCfn = invokedByCfn;
     }
 
     public <ClientT> ProxyClient<ClientT> newProxy(@Nonnull Supplier<ClientT> client) {
@@ -331,6 +338,15 @@ public class AmazonWebServicesClientProxy implements CallChain {
                                     do {
                                         try {
                                             event = inner.invoke(request, ex, client_, model_, context_);
+
+                                            //
+                                            // Ensure that we null out model for AlreadyExists to meet CFN IaC expectations
+                                            //
+                                            if (event.getErrorCode() == HandlerErrorCode.AlreadyExists
+                                                && AmazonWebServicesClientProxy.this.invokedByCfn) {
+                                                event.setResourceModel(null);
+                                            }
+
                                         } catch (RetryableException e) {
                                             break;
                                         } catch (Exception e) {

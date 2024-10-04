@@ -326,7 +326,8 @@ public abstract class AbstractWrapper<ResourceT, CallbackT, ConfigurationT> {
         if (request.getRequestData().getCallerCredentials() != null) {
             awsClientProxy = new AmazonWebServicesClientProxy(this.loggerProxy, request.getRequestData().getCallerCredentials(),
                                                               DelayFactory.CONSTANT_DEFAULT_DELAY_FACTORY,
-                                                              WaitStrategy.scheduleForCallbackStrategy());
+                                                              WaitStrategy.scheduleForCallbackStrategy(),
+                                                              request.getStackId() != null);
         }
 
         ProgressEvent<ResourceT, CallbackT> handlerResponse = wrapInvocationAndHandleErrors(awsClientProxy,
