@@ -56,8 +56,8 @@ public abstract class LambdaWrapper<ResourceT, CallbackT, ConfigurationT>
         TerminalException {
         if (platformLogPublisher == null) {
             platformLogPublisher = new LambdaLogPublisher(context.getLogger());
+            this.platformLoggerProxy.addLogPublisher(platformLogPublisher);
         }
-        this.platformLoggerProxy.addLogPublisher(platformLogPublisher);
         processRequest(inputStream, outputStream);
         outputStream.close();
     }

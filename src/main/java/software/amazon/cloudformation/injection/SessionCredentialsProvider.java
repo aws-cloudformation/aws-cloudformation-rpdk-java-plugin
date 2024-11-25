@@ -29,4 +29,9 @@ public class SessionCredentialsProvider implements CredentialsProvider {
         this.awsSessionCredentials = AwsSessionCredentials.create(credentials.getAccessKeyId(), credentials.getSecretAccessKey(),
             credentials.getSessionToken());
     }
+
+    @Override
+    public void resetCredentials() {
+        this.awsSessionCredentials = null;
+    }
 }

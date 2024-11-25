@@ -174,6 +174,11 @@ public class End2EndCallChainTest {
             public void setCredentials(Credentials credentials) {
 
             }
+
+            @Override
+            public void resetCredentials() {
+
+            }
         };
     }
 

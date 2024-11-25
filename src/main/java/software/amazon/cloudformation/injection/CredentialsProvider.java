@@ -30,4 +30,9 @@ public interface CredentialsProvider {
      * @param credentials, incoming credentials for the call that is being made
      */
     void setCredentials(Credentials credentials);
+
+    /**
+     * set credentials back to null to avoid reusing stale creds
+     */
+    void resetCredentials();
 }
