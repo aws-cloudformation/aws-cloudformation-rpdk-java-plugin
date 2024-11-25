@@ -26,5 +26,17 @@ public enum HookTargetType {
      * A target model meant to represent a target for a Resource Hook. This model
      * type will have properties specific to the resource type.
      */
-    RESOURCE;
+    RESOURCE,
+
+    /**
+     * A target model meant to represent a target for a Stack Hook. This model type
+     * will have properties specific to the stack type.
+     */
+    STACK,
+
+    /**
+     * A target model meant to represent a target for a stack Change Set Hook. This
+     * model type will have properties specific to the change set type.
+     */
+    CHANGE_SET;
 }

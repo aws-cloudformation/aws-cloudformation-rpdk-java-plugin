@@ -12,27 +12,34 @@
 * express or implied. See the License for the specific language governing
 * permissions and limitations under the License.
 */
-package software.amazon.cloudformation.proxy.hook;
+package software.amazon.cloudformation.proxy.hook.targetmodel;
 
-import java.util.Map;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@NoArgsConstructor
+@Builder
 @AllArgsConstructor
-@Builder(toBuilder = true)
-public class HookRequestData {
-    private String targetName;
-    private String targetType;
-    private String targetLogicalId;
-    private Map<String, Object> targetModel;
-    private String payload;
-    private String callerCredentials;
-    private String providerCredentials;
-    private String providerLogGroupName;
-    private String hookEncryptionKeyArn;
-    private String hookEncryptionKeyRole;
+@NoArgsConstructor
+public class ChangedResource {
+    @JsonProperty("LogicalResourceId")
+    private String logicalResourceId;
+
+    @JsonProperty("ResourceType")
+    private String resourceType;
+
+    @JsonProperty("LineNumber")
+    private Integer lineNumber;
+
+    @JsonProperty("Action")
+    private String action;
+
+    @JsonProperty("ResourceProperties")
+    private String resourceProperties;
+
+    @JsonProperty("PreviousResourceProperties")
+    private String previousResourceProperties;
 }

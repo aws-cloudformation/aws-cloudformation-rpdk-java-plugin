@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>software.amazon.cloudformation</groupId>
     <artifactId>aws-cloudformation-rpdk-java-plugin</artifactId>
-    <version>2.1.1</version>
+    <version>2.2.1</version>
     <name>AWS CloudFormation RPDK Java Plugin</name>
     <description>The CloudFormation Resource Provider Development Kit (RPDK) allows you to author your own resource providers that can be used by CloudFormation. This plugin library helps to provide runtime bindings for the execution of your providers by CloudFormation.
     </description>
@@ -491,7 +491,7 @@
                     <plugin>
                         <groupId>org.sonatype.plugins</groupId>
                         <artifactId>nexus-staging-maven-plugin</artifactId>
-                        <version>1.6.13</version>
+                        <version>1.6.8</version>
                         <extensions>true</extensions>
                         <configuration>
                             <serverId>sonatype-nexus-staging</serverId>

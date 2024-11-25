@@ -23,6 +23,8 @@ import static org.mockito.Mockito.verify;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -30,7 +32,12 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -38,6 +45,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.cloudformation.encryption.KMSCipher;
+import software.amazon.cloudformation.exceptions.TerminalException;
 import software.amazon.cloudformation.injection.CredentialsProvider;
 import software.amazon.cloudformation.loggers.CloudWatchLogPublisher;
 import software.amazon.cloudformation.loggers.LogPublisher;
@@ -48,7 +56,10 @@ import software.amazon.cloudformation.proxy.OperationStatus;
 import software.amazon.cloudformation.proxy.ProgressEvent;
 import software.amazon.cloudformation.proxy.hook.HookHandlerRequest;
 import software.amazon.cloudformation.proxy.hook.HookProgressEvent;
+import software.amazon.cloudformation.proxy.hook.HookRequestData;
 import software.amazon.cloudformation.proxy.hook.HookStatus;
+import software.amazon.cloudformation.proxy.hook.targetmodel.ChangedResource;
+import software.amazon.cloudformation.proxy.hook.targetmodel.StackHookTargetModel;
 import software.amazon.cloudformation.resource.SchemaValidator;
 import software.amazon.cloudformation.resource.Serializer;
 
@@ -168,7 +179,6 @@ public class HookLambdaWrapperTest {
 
             // assert handler receives correct injections
             assertThat(wrapper.awsClientProxy).isNotNull();
-            assertThat(wrapper.getRequest()).isEqualTo(hookHandlerRequest);
             assertThat(wrapper.invocationPoint).isEqualTo(invocationPoint);
             assertThat(wrapper.callbackContext).isNull();
         }
@@ -205,7 +215,6 @@ public class HookLambdaWrapperTest {
 
             // assert handler receives correct injections
             assertThat(wrapper.awsClientProxy).isNotNull();
-            assertThat(wrapper.getRequest()).isEqualTo(hookHandlerRequest);
             assertThat(wrapper.invocationPoint).isEqualTo(invocationPoint);
             assertThat(wrapper.callbackContext).isNull();
         }
@@ -242,7 +251,6 @@ public class HookLambdaWrapperTest {
 
             // assert handler receives correct injections
             assertThat(wrapper.awsClientProxy).isNotNull();
-            assertThat(wrapper.getRequest()).isEqualTo(hookHandlerRequest);
             assertThat(wrapper.invocationPoint).isEqualTo(invocationPoint);
             assertThat(wrapper.callbackContext).isNull();
         }
@@ -279,7 +287,6 @@ public class HookLambdaWrapperTest {
 
             // assert handler receives correct injections
             assertThat(wrapperStrictDeserialize.awsClientProxy).isNotNull();
-            assertThat(wrapperStrictDeserialize.getRequest()).isEqualTo(hookHandlerRequest);
             assertThat(wrapperStrictDeserialize.invocationPoint).isEqualTo(invocationPoint);
             assertThat(wrapperStrictDeserialize.callbackContext).isNull();
         }
@@ -322,6 +329,103 @@ public class HookLambdaWrapperTest {
             assertThat(wrapperStrictDeserialize.callbackContext).isNull();
         }
     }
+
+    @ParameterizedTest
+    @CsvSource({ "preCreate.request.with-stack-level-hook.json,CREATE_PRE_PROVISION" })
+    public void invokeHandler_WithStackLevelHook_returnsSuccess(final String requestDataPath, final String invocationPointString)
+        throws IOException {
+        final HookInvocationPoint invocationPoint = HookInvocationPoint.valueOf(invocationPointString);
+
+        final ProgressEvent<TestModel,
+            TestContext> pe = ProgressEvent.<TestModel, TestContext>builder().status(OperationStatus.SUCCESS).build();
+        wrapper.setInvokeHandlerResponse(pe);
+
+        lenient().when(cipher.decryptCredentials(any())).thenReturn(new Credentials("123", "123", "123"));
+
+        wrapper.setHookInvocationPayloadFromS3(Map.of(
+                "Template", "template string here",
+                "PreviousTemplate", "previous template string here",
+                "ResolvedTemplate", "resolved template string here",
+                "ChangedResources", List.of(
+                        Map.of(
+                                "LogicalResourceId", "SomeLogicalResourceId",
+                                "ResourceType", "AWS::S3::Bucket",
+                                "Action", "CREATE",
+                                "LineNumber", 3,
+                                "ResourceProperties", "<Resource Properties as json string>",
+                                "PreviousResourceProperties", "<Resource Properties as json string>"
+                        )
+                )
+        ));
+
+        try (final InputStream in = loadRequestStream(requestDataPath); final OutputStream out = new ByteArrayOutputStream()) {
+            final Context context = getLambdaContext();
+
+            wrapper.handleRequest(in, out, context);
+
+            // verify initialiseRuntime was called and initialised dependencies
+            verifyInitialiseRuntime();
+
+            // verify output response
+            verifyHandlerResponse(out,
+                HookProgressEvent.<TestContext>builder().clientRequestToken("123456").hookStatus(HookStatus.SUCCESS).build());
+
+            // assert handler receives correct injections
+            assertThat(wrapper.awsClientProxy).isNotNull();
+            assertThat(wrapper.invocationPoint).isEqualTo(invocationPoint);
+            assertThat(wrapper.callbackContext).isNull();
+
+            assertThat(wrapper.getRequest().getHookContext().getTargetType()).isEqualTo("STACK");
+            assertThat(wrapper.getRequest().getHookContext().getTargetName()).isEqualTo("STACK");
+            assertThat(wrapper.getRequest().getHookContext().getTargetLogicalId()).isEqualTo("myStack");
+
+            StackHookTargetModel stackHookTargetModel = wrapper.getRequest().getHookContext()
+                .getTargetModel(StackHookTargetModel.class);
+            assertThat(stackHookTargetModel.getTemplate()).isEqualTo("template string here");
+            assertThat(stackHookTargetModel.getPreviousTemplate()).isEqualTo("previous template string here");
+            assertThat(stackHookTargetModel.getResolvedTemplate()).isEqualTo("resolved template string here");
+            assertThat(stackHookTargetModel.getChangedResources().size()).isEqualTo(1);
+
+            ChangedResource expectedChangedResource = ChangedResource.builder().logicalResourceId("SomeLogicalResourceId")
+                .resourceType("AWS::S3::Bucket").lineNumber(3).action("CREATE")
+                .resourceProperties("<Resource Properties as json string>")
+                .previousResourceProperties("<Resource Properties as json string>").build();
+            assertThat(stackHookTargetModel.getChangedResources().get(0)).isEqualTo(expectedChangedResource);
+        }
+    }
+
+     @Test
+     public void testIsHookInvocationPayloadRemote() {
+         List<HookRequestData> invalidHookRequestDataObjects = ImmutableList.of(
+             HookRequestData.builder().targetModel(null).build(),
+             HookRequestData.builder().targetModel(null).payload(null).build(),
+             HookRequestData.builder().targetModel(Collections.emptyMap()).payload(null).build()
+         );
+
+         invalidHookRequestDataObjects.forEach(requestData -> {
+            Assertions.assertThrows(TerminalException.class, () -> wrapper.isHookInvocationPayloadRemote(requestData));
+         });
+
+         Assertions.assertThrows(TerminalException.class, () -> wrapper.isHookInvocationPayloadRemote(null));
+
+         HookRequestData bothFieldsPopulated = HookRequestData.builder()
+                 .targetModel(ImmutableMap.of("foo", "bar"))
+                 .payload("http://s3PresignedUrl")
+                 .build();
+         HookRequestData onlyTargetModelPopulated = HookRequestData.builder()
+                 .targetModel(ImmutableMap.of("foo", "bar"))
+                 .payload(null).build();
+         HookRequestData onlyPayloadPopulated = HookRequestData.builder()
+                 .targetModel(Collections.emptyMap())
+                 .payload("http://s3PresignedUrl").build();
+         HookRequestData onlyPayloadPopulatedWithNullTargetModel = HookRequestData.builder().targetModel(null)
+                 .payload("http://s3PresignedUrl").build();
+
+         Assertions.assertFalse(wrapper.isHookInvocationPayloadRemote(bothFieldsPopulated));
+         Assertions.assertFalse(wrapper.isHookInvocationPayloadRemote(onlyTargetModelPopulated));
+         Assertions.assertTrue(wrapper.isHookInvocationPayloadRemote(onlyPayloadPopulated));
+         Assertions.assertTrue(wrapper.isHookInvocationPayloadRemote(onlyPayloadPopulatedWithNullTargetModel));
+     }
 
     private final String expectedStringWhenStrictDeserializingWithExtraneousFields = "Unrecognized field \"targetName\" (class software.amazon.cloudformation.proxy.hook.HookInvocationRequest), not marked as ignorable (10 known properties: \"requestContext\", \"stackId\", \"clientRequestToken\", \"hookModel\", \"hookTypeName\", \"requestData\", \"actionInvocationPoint\", \"awsAccountId\", \"changeSetId\", \"hookTypeVersion\"])\n"
         + " at [Source: (String)\"{\n" + "    \"clientRequestToken\": \"123456\",\n" + "    \"awsAccountId\": \"123456789012\",\n"

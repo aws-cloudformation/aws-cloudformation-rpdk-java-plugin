@@ -17,12 +17,18 @@ package software.amazon.cloudformation;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.retry.RetryUtils;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.annotations.VisibleForTesting;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.Date;
+import java.util.Map;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -31,10 +37,15 @@ import org.json.JSONTokener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.http.HttpExecuteRequest;
+import software.amazon.awssdk.http.HttpExecuteResponse;
 import software.amazon.awssdk.http.HttpStatusCode;
 import software.amazon.awssdk.http.HttpStatusFamily;
 import software.amazon.awssdk.http.SdkHttpClient;
+import software.amazon.awssdk.http.SdkHttpMethod;
+import software.amazon.awssdk.http.SdkHttpRequest;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
+import software.amazon.awssdk.utils.IoUtils;
 import software.amazon.cloudformation.encryption.Cipher;
 import software.amazon.cloudformation.encryption.KMSCipher;
 import software.amazon.cloudformation.exceptions.BaseHandlerException;
@@ -63,6 +74,7 @@ import software.amazon.cloudformation.proxy.hook.HookHandlerRequest;
 import software.amazon.cloudformation.proxy.hook.HookInvocationRequest;
 import software.amazon.cloudformation.proxy.hook.HookProgressEvent;
 import software.amazon.cloudformation.proxy.hook.HookRequestContext;
+import software.amazon.cloudformation.proxy.hook.HookRequestData;
 import software.amazon.cloudformation.proxy.hook.HookStatus;
 import software.amazon.cloudformation.resource.SchemaValidator;
 import software.amazon.cloudformation.resource.Serializer;
@@ -88,6 +100,9 @@ public abstract class HookAbstractWrapper<TargetT, CallbackT, ConfigurationT> {
     final CloudWatchLogsProvider cloudWatchLogsProvider;
     final SchemaValidator validator;
     final TypeReference<HookInvocationRequest<ConfigurationT, CallbackT>> typeReference;
+
+    final TypeReference<Map<String, Object>> hookStackPayloadS3TypeReference = new TypeReference<>() {
+    };
 
     private MetricsPublisher providerMetricsPublisher;
 
@@ -222,17 +237,19 @@ public abstract class HookAbstractWrapper<TargetT, CallbackT, ConfigurationT> {
 
         assert request != null : "Invalid request object received. Request object is null";
 
-        if (request.getRequestData() == null || request.getRequestData().getTargetModel() == null) {
-            throw new TerminalException("Invalid request object received. Target Model can not be null.");
-        }
-
-        // TODO: Include hook schema validation here after schema is finalized
+        boolean isPayloadRemote = isHookInvocationPayloadRemote(request.getRequestData());
 
         try {
             // initialise dependencies with platform credentials
             initialiseRuntime(request.getHookTypeName(), request.getRequestData().getProviderCredentials(),
                 request.getRequestData().getProviderLogGroupName(), request.getAwsAccountId(),
                 request.getRequestData().getHookEncryptionKeyArn(), request.getRequestData().getHookEncryptionKeyRole());
+
+            if (isPayloadRemote) {
+                Map<String, Object> targetModelData = retrieveHookInvocationPayloadFromS3(request.getRequestData().getPayload());
+
+                request.getRequestData().setTargetModel(targetModelData);
+            }
 
             // transform the request object to pass to caller
             HookHandlerRequest hookHandlerRequest = transform(request);
@@ -364,6 +381,50 @@ public abstract class HookAbstractWrapper<TargetT, CallbackT, ConfigurationT> {
         String output = this.serializer.serialize(response);
         outputStream.write(output.getBytes(StandardCharsets.UTF_8));
         outputStream.flush();
+    }
+
+    public Map<String, Object> retrieveHookInvocationPayloadFromS3(final String s3PresignedUrl) {
+        if (s3PresignedUrl != null) {
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+
+            try {
+                URL presignedUrl = new URL(s3PresignedUrl);
+                SdkHttpRequest httpRequest = SdkHttpRequest.builder().method(SdkHttpMethod.GET).uri(presignedUrl.toURI()).build();
+
+                HttpExecuteRequest executeRequest = HttpExecuteRequest.builder().request(httpRequest).build();
+
+                HttpExecuteResponse response = HTTP_CLIENT.prepareRequest(executeRequest).call();
+
+                response.responseBody().ifPresentOrElse(abortableInputStream -> {
+                    try {
+                        IoUtils.copy(abortableInputStream, byteArrayOutputStream);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }, () -> loggerProxy.log("Hook invocation payload is empty."));
+
+                String str = byteArrayOutputStream.toString(StandardCharsets.UTF_8);
+
+                return this.serializer.deserialize(str, hookStackPayloadS3TypeReference);
+            } catch (RuntimeException | IOException | URISyntaxException exp) {
+                loggerProxy.log("Failed to retrieve hook invocation payload" + exp.toString());
+            }
+        }
+        return Collections.emptyMap();
+    }
+
+    @VisibleForTesting
+    protected boolean isHookInvocationPayloadRemote(HookRequestData hookRequestData) {
+        if (hookRequestData == null) {
+            throw new TerminalException("Invalid request object received. Target Model can not be null.");
+        }
+
+        if ((hookRequestData.getTargetModel() == null || hookRequestData.getTargetModel().isEmpty())
+            && hookRequestData.getPayload() == null) {
+            throw new TerminalException("No payload data set.");
+        }
+
+        return (hookRequestData.getTargetModel() == null || hookRequestData.getTargetModel().isEmpty());
     }
 
     /**

@@ -1,0 +1,26 @@
+{
+    "clientRequestToken": "123456",
+    "awsAccountId": "123456789012",
+    "stackId": "arn:aws:cloudformation:us-east-1:123456789012:stack/SampleStack/e722ae60-fe62-11e8-9a0e-0ae8cc519968",
+    "changeSetId": "arn:aws:cloudformation:us-east-1:123456789012:changeSet/SampleChangeSet-conditional/1a2345b6-0000-00a0-a123-00abc0abc000",
+    "hookTypeName": "AWS::Test::TestModel",
+    "hookTypeVersion": "1.0",
+    "hookModel": {
+        "property1": "abc",
+        "property2": 123
+    },
+    "actionInvocationPoint": "CREATE_PRE_PROVISION",
+    "requestData": {
+        "targetName": "STACK",
+        "targetType": "STACK",
+        "targetLogicalId": "myStack",
+        "targetModel": {},
+        "payload": "http://someS3PresignedUrl",
+        "callerCredentials": "callerCredentials",
+        "providerCredentials": "providerCredentials",
+        "providerLogGroupName": "providerLoggingGroupName",
+        "hookEncryptionKeyArn": "hookEncryptionKeyArn",
+        "hookEncryptionKeyRole": "hookEncryptionKeyRole"
+    },
+    "requestContext": {}
+}

@@ -16,6 +16,7 @@ package software.amazon.cloudformation.proxy.hook.targetmodel;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.io.File;
 import java.io.FileInputStream;
@@ -23,6 +24,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
@@ -197,6 +199,93 @@ public class HookTargetModelTest {
             OBJECT_MAPPER.writeValueAsString(targetModel));
         Assertions.assertEquals("{\"UnknownKey2\":42,\"UnknownKey1\":\"UnknownValue\"}",
             OBJECT_MAPPER.writeValueAsString(resourceProperties));
+    }
+
+    @Test
+    public void testStackHookTargetModel() throws Exception {
+        final String template = "{\"key1\":\"value1\"}";
+        final String previousTemplate = "{\"previousKey1\":\"previousValue1\"}";
+        final String resolvedTemplate = "{\"resolvedKey1\":\"resolvedValue1\"}";
+        final List<ChangedResource> changedResources = ImmutableList
+            .of(ChangedResource.builder().logicalResourceId("SomeLogicalResourceId").resourceType("AWS::S3::Bucket")
+                .action("CREATE").lineNumber(11).previousResourceProperties("{\"BucketName\": \"some-prev-bucket-name\"")
+                .resourceProperties("{\"BucketName\": \"some-bucket-name\"").build());
+
+        final Map<String, Object> targetModelMap = ImmutableMap.of("Template", template, "PreviousTemplate", previousTemplate,
+            "ResolvedTemplate", resolvedTemplate, "ChangedResources", changedResources);
+
+        final StackHookTargetModel targetModel = HookTargetModel.of(targetModelMap, StackHookTargetModel.class);
+
+        Assertions.assertEquals(template, targetModel.getTemplate());
+        Assertions.assertEquals(previousTemplate, targetModel.getPreviousTemplate());
+        Assertions.assertEquals(resolvedTemplate, targetModel.getResolvedTemplate());
+        Assertions.assertEquals(changedResources, targetModel.getChangedResources());
+        Assertions.assertNull(targetModel.getHookTargetTypeReference());
+        Assertions.assertEquals(
+            "{\"Template\":\"{\\\"key1\\\":\\\"value1\\\"}\",\"PreviousTemplate\":\"{\\\"previousKey1\\\":\\\""
+                + "previousValue1\\\"}\",\"ResolvedTemplate\":\"{\\\"resolvedKey1\\\":\\\"resolvedValue1\\\"}\",\"ChangedResources\""
+                + ":[{\"LogicalResourceId\":\"SomeLogicalResourceId\",\"ResourceType\":\"AWS::S3::Bucket\",\"LineNumber\":"
+                + "11,\"Action\":\"CREATE\",\"ResourceProperties\":\"{\\\"BucketName\\\": \\\"some-bucket-name\\\"\","
+                + "\"PreviousResourceProperties\":\"{\\\"BucketName\\\": \\\"some-prev-bucket-name\\\"\"}]}",
+            OBJECT_MAPPER.writeValueAsString(targetModel));
+    }
+
+    @Test
+    public void testStackHookTargetModelWithAdditionalPropertiesInInput() throws Exception {
+        final String template = "{\"key1\":\"value1\"}";
+        final String previousTemplate = "{\"previousKey1\":\"previousValue1\"}";
+        final String resolvedTemplate = "{\"resolvedKey1\":\"resolvedValue1\"}";
+        final String extraneousProperty = "{\"extraKey\":\"extraValue\"}";
+        final List<ChangedResource> changedResources = ImmutableList
+            .of(ChangedResource.builder().logicalResourceId("SomeLogicalResourceId").resourceType("AWS::S3::Bucket")
+                .action("CREATE").lineNumber(11).previousResourceProperties("{\"BucketName\": \"some-prev-bucket-name\"")
+                .resourceProperties("{\"BucketName\": \"some-bucket-name\"").build());
+
+        final Map<String, Object> targetModelMap = ImmutableMap.of("Template", template, "PreviousTemplate", previousTemplate,
+            "ResolvedTemplate", resolvedTemplate, "ChangedResources", changedResources, "ExtraProperty", extraneousProperty);
+
+        final StackHookTargetModel targetModel = HookTargetModel.of(targetModelMap, StackHookTargetModel.class);
+
+        Assertions.assertEquals(template, targetModel.getTemplate());
+        Assertions.assertEquals(previousTemplate, targetModel.getPreviousTemplate());
+        Assertions.assertEquals(resolvedTemplate, targetModel.getResolvedTemplate());
+        Assertions.assertEquals(changedResources, targetModel.getChangedResources());
+        Assertions.assertNull(targetModel.getHookTargetTypeReference());
+
+        Assertions.assertEquals("{\"Template\":\"{\\\"key1\\\":\\\"value1\\\"}\",\"PreviousTemplate\":\"{\\\"previousKey1\\\":"
+            + "\\\"previousValue1\\\"}\",\"ResolvedTemplate\":\"{\\\"resolvedKey1\\\":\\\"resolvedValue1\\\"}\","
+            + "\"ChangedResources\":[{\"LogicalResourceId\":\"SomeLogicalResourceId\",\"ResourceType\":"
+            + "\"AWS::S3::Bucket\",\"LineNumber\":11,\"Action\":\"CREATE\",\"ResourceProperties\":\"{"
+            + "\\\"BucketName\\\": \\\"some-bucket-name\\\"\",\"PreviousResourceProperties\":\"{\\\"BucketName\\\":"
+            + " \\\"some-prev-bucket-name\\\"\"}]}", OBJECT_MAPPER.writeValueAsString(targetModel));
+    }
+
+    @Test
+    public void testStackHookTargetModelWithMissingPropertiesInInput() throws Exception {
+        final String template = "{\"key1\":\"value1\"}";
+        final String resolvedTemplate = "{\"resolvedKey1\":\"resolvedValue1\"}";
+        final List<ChangedResource> changedResources = ImmutableList
+            .of(ChangedResource.builder().logicalResourceId("SomeLogicalResourceId").resourceType("AWS::S3::Bucket")
+                .action("CREATE").previousResourceProperties("{\"BucketName\": \"some-prev-bucket-name\"")
+                .resourceProperties("{\"BucketName\": \"some-bucket-name\"").build());
+
+        final Map<String, Object> targetModelMap = ImmutableMap.of("Template", template, "ResolvedTemplate", resolvedTemplate,
+            "ChangedResources", changedResources);
+
+        final StackHookTargetModel targetModel = HookTargetModel.of(targetModelMap, StackHookTargetModel.class);
+
+        Assertions.assertEquals(template, targetModel.getTemplate());
+        Assertions.assertNull(targetModel.getPreviousTemplate());
+        Assertions.assertEquals(resolvedTemplate, targetModel.getResolvedTemplate());
+        Assertions.assertEquals(changedResources, targetModel.getChangedResources());
+        Assertions.assertNull(targetModel.getHookTargetTypeReference());
+        Assertions.assertEquals(
+            "{\"Template\":\"{\\\"key1\\\":\\\"value1\\\"}\",\"PreviousTemplate\":null,\"ResolvedTemplate\":"
+                + "\"{\\\"resolvedKey1\\\":\\\"resolvedValue1\\\"}\",\"ChangedResources\":[{\"LogicalResourceId\":"
+                + "\"SomeLogicalResourceId\",\"ResourceType\":\"AWS::S3::Bucket\",\"LineNumber\":null,\"Action\":"
+                + "\"CREATE\",\"ResourceProperties\":\"{\\\"BucketName\\\": \\\"some-bucket-name\\\"\","
+                + "\"PreviousResourceProperties\":\"{\\\"BucketName\\\": \\\"some-prev-bucket-name\\\"\"}]}",
+            OBJECT_MAPPER.writeValueAsString(targetModel));
     }
 
     @Test

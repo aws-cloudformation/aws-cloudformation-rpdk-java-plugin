@@ -18,5 +18,6 @@ public enum OperationStatus {
     PENDING,
     IN_PROGRESS,
     SUCCESS,
+    CHANGE_SET_SUCCESS_SKIP_STACK_HOOK,
     FAILED
 }
