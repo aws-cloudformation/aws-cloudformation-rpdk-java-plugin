@@ -93,6 +93,32 @@ public class Translator {
   }
 
   /**
+   * Request to update Stack level tags. Stack tags are defined as Maps by cloudformation
+   * @param previousStackTags previous stack tags
+   * @param stackTags currently provided stack tags
+   * @return awsRequest the aws service request to modify a resource
+   */
+  static AwsRequest translateToStackTagUpdateRequest(final Map<String, String> previousStackTags, final Map<String, String> stackTags) {
+    final AwsRequest awsRequest = null;
+    // TODO: construct a request
+    return awsRequest;
+  }
+
+  /**
+   * Request to update Resource level tags. Resource tags are defined by the service teams and could be represented by any collection
+   * @param previousModel previous resource model, which contains previously provided resource tags
+   * @param model current resource model, which contains currently provided resource tags
+   * @return awsRequest the aws service request to modify a resource
+   */
+  static AwsRequest translateToResourceTagUpdateRequest(final ResourceModel previousModel, final ResourceModel model) {
+    final AwsRequest awsRequest = null;
+    // TODO: construct a request
+    return awsRequest;
+  }
+
+
+
+  /**
    * Request to list resources
    * @param nextToken token passed to the aws service list resources request
    * @return awsRequest the aws service request to list resources within aws account
