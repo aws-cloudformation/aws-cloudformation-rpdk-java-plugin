@@ -56,4 +56,11 @@ public class CfnGeneralServiceExceptionTests {
             throw new CfnGeneralServiceException(new RuntimeException("something wrong"));
         }).satisfies(exception -> assertEquals("something wrong", exception.getMessage()));
     }
+
+    @Test
+    public void cfnGeneralServiceException_detailedErrorMessage() {
+        assertThatExceptionOfType(CfnGeneralServiceException.class).isThrownBy(() -> {
+            throw new CfnGeneralServiceException("Some operation", new RuntimeException("something wrong"));
+        }).satisfies(exception -> assertEquals("Error occurred during operation 'Some operation'. something wrong", exception.getMessage()));
+    }
 }

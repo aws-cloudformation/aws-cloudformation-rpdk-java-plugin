@@ -27,7 +27,7 @@ public class CfnNotFoundException extends BaseHandlerException {
 
     public CfnNotFoundException(final String resourceTypeName,
                                 final String resourceIdentifier) {
-        this(resourceTypeName, resourceIdentifier, null);
+        super(String.format(ERROR_CODE.getMessage(), resourceTypeName, resourceIdentifier), ERROR_CODE);
     }
 
     public CfnNotFoundException(final String resourceTypeName,

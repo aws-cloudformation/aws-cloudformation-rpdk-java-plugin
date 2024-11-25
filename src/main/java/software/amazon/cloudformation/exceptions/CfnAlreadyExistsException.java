@@ -27,7 +27,7 @@ public class CfnAlreadyExistsException extends BaseHandlerException {
 
     public CfnAlreadyExistsException(final String resourceTypeName,
                                      final String resourceIdentifier) {
-        this(resourceTypeName, resourceIdentifier, null);
+        super(String.format(ERROR_CODE.getMessage(), resourceTypeName, resourceIdentifier), ERROR_CODE);
     }
 
     public CfnAlreadyExistsException(final String resourceTypeName,

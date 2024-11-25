@@ -26,7 +26,7 @@ public class CfnThrottlingException extends BaseHandlerException {
     }
 
     public CfnThrottlingException(final String operation) {
-        this(operation, null);
+        super(String.format(ERROR_CODE.getMessage(), operation), ERROR_CODE);
     }
 
     public CfnThrottlingException(final String operation,

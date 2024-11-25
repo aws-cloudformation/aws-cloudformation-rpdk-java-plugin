@@ -22,7 +22,7 @@ public abstract class BaseHandlerException extends RuntimeException {
 
     private static final long serialVersionUID = -1646136434112354328L;
 
-    private HandlerErrorCode errorCode;
+    private final HandlerErrorCode errorCode;
 
     protected BaseHandlerException(final Throwable cause,
                                    final HandlerErrorCode errorCode) {
@@ -33,7 +33,7 @@ public abstract class BaseHandlerException extends RuntimeException {
     protected BaseHandlerException(final String message,
                                    final Throwable cause,
                                    final HandlerErrorCode errorCode) {
-        super(message, cause);
+        super(String.format("%s %s", message, cause.getMessage()), cause);
         this.errorCode = errorCode;
     }
 

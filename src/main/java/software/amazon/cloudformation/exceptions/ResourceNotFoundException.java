@@ -30,7 +30,7 @@ public class ResourceNotFoundException extends CfnNotFoundException {
 
     public ResourceNotFoundException(final String resourceTypeName,
                                      final String resourceIdentifier) {
-        this(resourceTypeName, resourceIdentifier, null);
+        super(resourceTypeName, resourceIdentifier);
     }
 
     public ResourceNotFoundException(final String resourceTypeName,

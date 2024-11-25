@@ -26,7 +26,7 @@ public class CfnInvalidRequestException extends BaseHandlerException {
     }
 
     public CfnInvalidRequestException(final String requestBody) {
-        this(requestBody, null);
+        super(String.format(ERROR_CODE.getMessage(), requestBody), ERROR_CODE);
     }
 
     public CfnInvalidRequestException(final String requestBody,

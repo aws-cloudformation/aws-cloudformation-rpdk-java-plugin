@@ -30,7 +30,7 @@ public class ResourceAlreadyExistsException extends CfnAlreadyExistsException {
 
     public ResourceAlreadyExistsException(final String resourceTypeName,
                                           final String resourceIdentifier) {
-        this(resourceTypeName, resourceIdentifier, null);
+        super(resourceTypeName, resourceIdentifier);
     }
 
     public ResourceAlreadyExistsException(final String resourceTypeName,

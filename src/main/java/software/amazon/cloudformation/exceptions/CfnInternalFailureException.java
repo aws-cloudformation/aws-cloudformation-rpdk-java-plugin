@@ -22,7 +22,7 @@ public class CfnInternalFailureException extends BaseHandlerException {
     private static final HandlerErrorCode ERROR_CODE = HandlerErrorCode.InternalFailure;
 
     public CfnInternalFailureException() {
-        this(null);
+        super(ERROR_CODE.getMessage(), ERROR_CODE);
     }
 
     public CfnInternalFailureException(final Throwable cause) {

@@ -26,7 +26,7 @@ public class CfnNetworkFailureException extends BaseHandlerException {
     }
 
     public CfnNetworkFailureException(final String operation) {
-        this(operation, null);
+        super(String.format(ERROR_CODE.getMessage(), operation), ERROR_CODE);
     }
 
     public CfnNetworkFailureException(final String operation,
